@@ -4,8 +4,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/AngelMonica126/GraphicAlgorithm?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm)
 
 
-本项目为对部分图形学论文的复现，主要代码框架和思路参考了AngelMonica的图形学论文复现的开源项目(https://github.com/AngelMonica126/GraphicAlgorithm)，在其基础上加入了自己的理解，并对部分公式参考原论文进行了修改，主要用于学习图形学算法，感谢大佬为后人提供的便利。
-
+本项目为对部分图形学论文的复现，主要代码框架和思路参考了AngelMonica126的图形学论文复现的开源项目https://github.com/AngelMonica126/GraphicAlgorithm ，在其基础上加入了自己的理解，并对部分公式参考原论文进行了修改，主要用于学习图形学算法，感谢大佬为后人提供的便利。
 
 # 项目配置
 
