@@ -1,0 +1,12 @@
+.git/
+.vs/
+Debug/
+Release/
+packages/
+GraphicSDK/
+*.sln
+*.vcxproj
+*.filters
+*.vcxproj.filters
+*.user
+*.vcxproj.user
