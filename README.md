@@ -1,7 +1,7 @@
-[![GitHub stars](https://img.shields.io/github/stars/AngelMonica126/GraphicAlgorithm.svg?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/AngelMonica126/GraphicAlgorithm?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm/issues)
-[![GitHub forks](https://img.shields.io/github/forks/AngelMonica126/GraphicAlgorithm?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm/network)
-[![GitHub last commit](https://img.shields.io/github/last-commit/AngelMonica126/GraphicAlgorithm?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm)
+[![GitHub stars](https://img.shields.io/github/stars/MustNotBeGreasy/myGraphicAlgorithm.svg?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/MustNotBeGreasy/myGraphicAlgorithm?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm/issues)
+[![GitHub forks](https://img.shields.io/github/forks/MustNotBeGreasy/myGraphicAlgorithm?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm/network)
+[![GitHub last commit](https://img.shields.io/github/last-commit/MustNotBeGreasy/myGraphicAlgorithm?style=flat-square)](https://github.com/MustNotBeGreasy/myGraphicAlgorithm)
 
 
 本项目为对部分图形学论文的复现，主要代码框架和思路参考了AngelMonica126的图形学论文复现的开源项目https://github.com/AngelMonica126/GraphicAlgorithm ，在其基础上加入了自己的理解，并对部分公式参考原论文进行了修改，主要用于学习图形学算法，感谢大佬为后人提供的便利。
