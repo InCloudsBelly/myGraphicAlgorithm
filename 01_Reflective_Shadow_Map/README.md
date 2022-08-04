@@ -51,7 +51,7 @@
 <br> 
 <div align=center>
 <img src="pic/4.png"> 
-</div>
+
  图4 RSM间接光照公式
 </div>
 <br>
