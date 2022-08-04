@@ -52,7 +52,7 @@
 <p align="center">
 
 ![avatar](pic/4.png)
-
+<p align="center">
  图4 RSM间接光照公式
 </p>
 <br>
