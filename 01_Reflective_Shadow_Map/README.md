@@ -50,7 +50,9 @@
 <br> 
 <br> 
 <p align="center">
-
+<div align=center>
+<img src="pic/4.png"> />
+</div>
 ![avatar](pic/4.png)
 <p align="center">
  图4 RSM间接光照公式
