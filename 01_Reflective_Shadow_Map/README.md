@@ -35,7 +35,7 @@
 
 ## ShadingWithRSMPass
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RSM具体原理如下图3，其中 _x_ 点为计算间接光照的点,而 _x<sub>p</sub>_ 则是VPL，也是为 _x_ 点提供间接光照的点。
-<center>
+<p align=center>
     <img style="border-radius: 0.3125em;
     box-shadow: 0 2px 4px 0 rgba(34,36,38,.12),0 2px 10px 0 rgba(34,36,38,.08);" 
     src="pic/3.png">
@@ -44,7 +44,12 @@
     display: inline-block;
     color: #999;
     padding: 2px;">图3 RSM基本原理</div>
-</center>
+</p>
+
+<div align=center>
+<img src="pic/4.png"> 
+
+</div>
 <br> 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 而 _x_ 接收到的来自 _x<sub>p</sub>_ 的间接光照强度如下式：（该式子在games202中，闫老师曾对分母中的指数4提出疑问，最终发现没有问题的，取决于分子中两个cos函数中，两点之间的方向是否归一化，如果归一化则分母指数为2，反之则为4，ps：可惜没看到大佬吃键盘的直播）。而由于两个cos都经过了clamp（0，1），保证两个点之间的上半球空间中相互可见。
 <br> 
