@@ -94,7 +94,7 @@
 <div align=center>
 <img src="pic/res2.png"> 
 
-图9 效果展示2
+图10 效果展示2
 </div>
 <br>
 
@@ -107,6 +107,7 @@
 <br>
 <br>
 # 参考资料：
+
 [1] Reflective Shadow Maps - Carsten Dachsbacher, Marc Stamminger<br>
 [2] Games202 - 高质量实时渲染-闫令琪<br>
 [3] 知乎：Monica的小甜甜：【论文复现】Reflective Shadow Maps
