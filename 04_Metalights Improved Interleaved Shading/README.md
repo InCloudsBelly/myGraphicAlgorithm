@@ -1,7 +1,7 @@
 # 项目简介 &nbsp; Metalights : Improved Interleaved Shading
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;正如标题所示，本文是在02 交错采样的基础上进行了改进策略，主要将多光源VPL分组进行优化，本文的改进效果可能肉眼并不明显，但是优化思路很有参考价值，由于本文我个人修改很少，主要学习思路，所以README中会引用许多Monica大佬的讲解，也许能够帮助你理解本文算法。
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;论文中描述了改进内容和效果，如图 1 和图 2所示，在02中我们已经发现了即使存在 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;论文中描述了改进内容和效果，如图 1 和图 2所示，在02中我们已经发现了即使存在高斯模糊的Pass以拟合每一个分块中的像素接收到系统中的所有的VPL的贡献，但是仍然会出现像素之间存在色差从而导致结果中肉眼可见一些像素分块，而论文则是针对这一问题，利用对灯光进行排序进行改进。
 
 <div align=center>
 <img src="pic/1.png" width = 40%> 
@@ -15,115 +15,59 @@
 图2 改进后的交错采样效果
 </div>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;请观察图1（论文原图），虽然像素不是很高，但是能明显看到二者的差异，右上的 Clamping 根据VPL到着色点的空间距离直接进行阶段，可以发现尽管间接光照的影响范围可以由VPL的影响半径调节，但是光照的衰减是突变的，从亮部到暗部的过渡很快，这难免会有些不自然，而左下的随机光源裁剪，亮部到暗部的过度是很自然的渐变效果，看起来非常逼真。
-
 # 具体实现
-## GBufferPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GBuffer是一differ shading中的一种思路，会将场景中所有的内容的世界坐标、法线、diffuse color等信息分别生成一张texture，以供后续渲染整个场景使用。（原文Monica大佬喜欢使用view space的坐标、法线等，我个人比较倾向世界坐标，理解二者之间的关系即可自行选择修改）。
 
-## RSMBufferPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;后一步操作中，可以参考camera的参数通过构建光源的View和Projection矩阵，构建的u_LightVPMatrix在shader中和某个点的世界坐标相乘，便可以获得光源空间中的各种信息，该pass主要可以构建一个map，其中的每一个像素对应的位置都会作为虚拟点光源（VPL virtual point light）进行下一步的渲染。值得一提的是，代码中的VPL Map的分辨率代表着虚拟点光源的数量，提升分辨率可以提升渲染效果，但也会使得算法效率变低。
+本文和02的Pass结构较为相似，本处只介绍改进的策略和对应的Pass
 
-## ShadowMapPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;本步骤就是正常的Shadowmap，通过判断当前点在光源空间之中的深度值和光源深度图中该点对应像素的最小深度值之间的大小关系可生成硬阴影。添加阴影之后可以更加清晰地看到间接光照的作用。
+## LowResolutionPass
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;论文中观察到在02中，我们对图像进行分块重组，而对于众多的VPL，按照编号顺序进行分组，分组数量和图像分组数量一致，按照编号直接进行分组的算法，可能存在部分光源对场景贡献比较大的分在了同一组，而相邻的组分配到的光源对场景的贡献度非常小，那么这两个组中，属于原图中相邻的着色点计算出的颜色就会出现明显色差，也就出现了像素色差。
 
-## CalculateVPLRadiusPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;实际上前边的几个pass都和RSM类似，而这个pass则是本文的精髓，这个步骤室使用Compute Shader计算得到每个VPL的裁剪参数。首先我们需要知道为了实现裁剪我们需要哪些参数，从基础着色公式来看：
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;本文的优化策略简而言之就是不在根据编号分组，而是根据VPL对场景的贡献度进行分组。可能会疑惑，计算场景贡献度不久需要渲染一边整体场景吗？这就是本文的一个很巧妙的Trick，本文最初会生成一次低分辨率的场景，根据最初生成的Gbuffer的信息，将他们进行低分辨率采样，构建一个新的低分辨率的场景，这个场景将会应用于计算每个VPL对整体的贡献度。
 
 <div align=center>
-<img src="pic/gs1.png">
+<img src="pic/3.png" width = 40%> 
 
- 图2 VPL基础着色公式
+图3 低分辨率场景
 </div>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;其中 I 为 VPL<sub>i</sub> 在 - w<sub>i</sub> 方向上的光照强度, _f_ (|| _x<sub>i</sub> - x_ || ) 函数则是 VPL<sub>i</sub> 到点 _x_ 点的衰减函数，一般而言，衰减函数与两点之间的距离成反比：
+## ShadingLowResolutionPass
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;这里Monica大佬在实现的时候，用了一个我觉得挺有意思的Trick，这里使用的Compute Shader中利用计算着色器的并行计算能力，每条线程计算一个VPL对低分辨率场景的贡献度，具体代码如图4所示：
 
 <div align=center>
-<img src="pic/gs2.png">
+<img src="pic/4.png" width = 80%> 
 
- 图3 光照衰减函数
+图4 并行计算每个VPL对场景贡献度的Trick
 </div>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;实际上这个衰减函数在计算间接光照的时候存在一些问题，首先就是这个衰减函数是永远不等于0的，这样对于距离很远的点也仍然需要计算虚拟点光源的贡献，这也牵扯出后续光源裁剪策略；另外，由于这个衰减函数没有考虑到距离过近的时候出现的计算错误，在Monica大佬的源码中我发现存在如图4的突兀光斑，导致渲染效果较差。
-
-<div align=center>
-<img src="pic/problem1.jpg">
-
- 图4 衰减函数引起的光斑问题
-</div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 经过分析，这是由于距离过近的时候，平方反比的衰减函数并不能正确计算近处的光照问题，将衰减函数增加一个低阈值阶段修改为 _float Fil = 1.0f / max(SquareDistance,0.1);_ 则可以较好地解决该问题，具体可以参考最终结果，不再有突兀的光斑了。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;本文的思路就是在这个Pass之后，我们获得了每个VPL的场景贡献度，后续会依据贡献度进行排序，排序后分组方式为：第一组的光源由贡献度排序后的1、1+n，1+2n …… , 其中n为 NumLights/NumBlocks。
 
 <br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 接下来需要介绍光源裁剪思路：每个光源设定一个随机数，然后对光源进行一个随机裁剪即可。思路很简单，不过如果真的是每个光源被裁剪的概率相等的话，那么还是会有可能对光照贡献大的光源被裁剪了。因此作者给出了一个新的衰减公式如下：
 
 <div align=center>
-<img src="pic/gs3.png">
 
- 图5 裁剪修正后的衰减函数
+__！！！！！！然而这里有一个问题，也直接导致了Monica大佬复现的时候优化效果不佳！！！！！！！__
+
+<br>
+
+<img src="pic/5.png" width = 80%> 
+
+图5 上述两个Pass的设置
 </div>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _a<sub>i</sub>_ 是VPL的一个参数，也是这个pass中需要记录为texture的一个参数，而 _ξ<sub>i</sub>_ 则是第 _i_ 个VPL对应的随机数，这个可以在初始化的过程中为每个光源随机分配一个 0~1 之间的随机数。其中的 _p<sub>i </sub>(l)_ 则是：
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;图 5 中的两个设置的意思是，这个Pass只会update一次，这在代码中的意思是，整个渲染之中，只会构建一次低分辨率场景，并根据这一张场景中并行计算VPL的场景贡献度，并根据贡献度进行排序，这样子理论上会使得交错采样得到的场景更加均匀，会显著改善相邻像素存在色差的问题。
 
-<div align=center>
-<img src="pic/gs4.png">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;然而，这个方法存在一个显著的问题：这一次排序，依据的是第一帧的屏幕空间中每个着色点与VPL的位置关系，这并不是VPL与场景的全部元素之间的关系，这也就使得，计算出的排序结果，也是最适用于第一帧。然而代码实现的是，第一帧计算出的VPL排序关系将会直接应用到后续所有的渲染之中，这显然是无道理的。这也是为什么Monica大佬在知乎中这篇论文的复现中提到实际实现改进效果不明显的原因。
 
- 图6 _p<sub>i </sub>(l)_ 计算公式
-</div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;而论文中推导出了一个截断半径的推导公式，半径可以作为第一个截断函数，当两点在世界坐标系中的距离大于影响半径的时候，则直接可以忽略该VPL对该着色点的贡献。
-
-<div align=center>
-<img src="pic/gs5.png">
-
- 图7 截断半径计算公式
-</div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;可以看到我们前边几乎所有的公式中都存在一个 _a<sub>i</sub>_ 的参数，这是一个和误差有关的常数：
-
-<div align=center>
-<img src="pic/gs6.png">
-
- 图8 _a<sub>i</sub>_ 计算公式
-</div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;其中 e<sub>max</sub>与误差有关，原论文中使用值为 _0.0005f_ , _E_ 为相机的曝光度，最终就可以代入数据实现论文的效果，这篇论文公式给的很全，是比较好复现的论文，思路比较巧妙。
-
-## ShadingWithRSMPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RSM具体原理已经介绍过，在具体实现本文的过程中，光源裁剪实际上是在这个Pass中实现的，而上一个Pass更多的是记录了 _a<sub>i</sub>_ 和截断半径 _r_ ，而具体的如图5和图6的公式则是在这个Pass中实现的。
-
-# 效果展示
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最初使用了经典的sponza作为测试，调整后得到效果如图6，在未被光照到的地面也反射出了帘子的颜色，而且相对自然：
-<br> 
-<div align=center>
-<img src="pic/res1.png"> 
-
-图9 Sponza效果展示1
-</div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;在直接光照照到的左侧对面，可以看到锦的色彩也同样反射到了对面，尽管距离较远存在衰减，但是还是能够分辨出来自锦的间接光照，这个效果比预期要更好哈哈。
-
-
-<div align=center>
-<img src="pic/res2.png"> 
-
-图10 Sponza效果展示2
-</div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;通过观察对侧的墙面，对比左侧没有被直接光照照到的部分（几乎全黑），右侧的墙面完全是由间接光照照亮的，效果还是可以的。
-
-<div align=center>
-<img src="pic/res3.png"> 
-
-图11 Sponza效果展示3
-</div>
 
 # 总结与评价
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 本文对于VPL的间接光照的实现效果不错的同时，还显著提高了VPL计算的效率，在01RSM中，RSM的分辨率只有256 * 256 , 而本文的RSM分辨率为 1024 * 1024, 但在光源裁剪的策略下，没有使用02的交错采样的策略便都能在更复杂的场景Sponza中获得更高的帧率，加速效果还是十分显著的。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 本文发掘了排序算法在渲染中的一种应用可能性，尽管对于每一帧都渲染一次低分辨率场景并分别进行一次贡献度计算与排序显然在实时渲染之中是不现实的，但是这种算法仍然具备非常好的参考价值和指导意义。
 
 <br>
 <br>
 # 参考资料：
 
-[1] Tokuyoshi, Yusuke & Harada, Takahiro. (2017). Stochastic Light Culling for VPLs on GGX Microsurfaces. Computer Graphics Forum. 36. 55-63. 10.1111/cgf.13224.  <br>
-[2] 知乎：Monica的小甜甜：【论文复现】Stochastic Light Culling
+[1] Metalights : Improved Interleaved Shading
+September 2010Computer Graphics Forum 29(7):2109-2117
+DOI:10.1111/j.1467-8659.2010.01798.x
+SourceDBLP  <br>
+[2] 知乎：Monica的小甜甜：【论文复现】Metalights : Improved Interleaved Shading
