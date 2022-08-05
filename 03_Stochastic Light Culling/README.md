@@ -20,63 +20,102 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;本步骤就是正常的Shadowmap，通过判断当前点在光源空间之中的深度值和光源深度图中该点对应像素的最小深度值之间的大小关系可生成硬阴影。添加阴影之后可以更加清晰地看到间接光照的作用。
 
 ## CalculateVPLRadiusPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;实际上前边的几个pass都和RSM类似，而这个pass则是本文的精髓，这个步骤室使用Compute Shader计算得到每个VPL的裁剪参数。首先我们需要知道为了实现裁剪我们需要哪些参数，从基础着色公式来看：
 
-## ShadingWithRSMPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RSM具体原理如下图3，其中 _x_ 点为计算间接光照的点,而 _x<sub>p</sub>_ 则是VPL，也是为 _x_ 点提供间接光照的点。
+<div align=center>
+<img src="pic/gs1.png">
+
+ 图2 VPL基础着色公式
+</div>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;其中 I 为 VPL<sub>i</sub> 在 - w<sub>i</sub> 方向上的光照强度, _f_ (|| _x<sub>i</sub> - x_ || ) 函数则是 VPL<sub>i</sub> 到点 _x_ 点的衰减函数，一般而言，衰减函数与两点之间的距离成反比：
+
+<div align=center>
+<img src="pic/gs2.png">
+
+ 图3 光照衰减函数
+</div>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;实际上这个衰减函数在计算间接光照的时候存在一些问题，首先就是这个衰减函数是永远不等于0的，这样对于距离很远的点也仍然需要计算虚拟点光源的贡献，这也牵扯出后续光源裁剪策略；另外，由于这个衰减函数没有考虑到距离过近的时候出现的计算错误，在Monica大佬的源码中我发现存在如图4的突兀光斑，导致渲染效果较差。
+
+<div align=center>
+<img src="pic/problem1.jpg">
+
+ 图4 衰减函数引起的光斑问题
+</div>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 经过分析，这是由于距离过近的时候，平方反比的衰减函数并不能正确计算近处的光照问题，将衰减函数增加一个低阈值阶段修改为 _float Fil = 1.0f / max(SquareDistance,0.1);_ 则可以较好地解决该问题，具体可以参考最终结果，不再有突兀的光斑了。
+
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 接下来需要介绍光源裁剪思路：每个光源设定一个随机数，然后对光源进行一个随机裁剪即可。思路很简单，不过如果真的是每个光源被裁剪的概率相等的话，那么还是会有可能对光照贡献大的光源被裁剪了。因此作者给出了一个新的衰减公式如下：
 
 <div align=center>
 <img src="pic/gs3.png">
 
- 图4 光照补偿拟合
+ 图5 裁剪修正后的衰减函数
 </div>
 
-## GaussianBlurPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 在完成了对若干低分辨率图像(还是存储为一张图像，如图3公式所示)进行渲染之后，我们需要对这些渲染效果进行融合，恢复我们原图预期的渲染效果，该步骤使用的公式如图5，可与图3可以结合理解，分别为融合公式和分块公式。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _a<sub>i</sub>_ 是VPL的一个参数，也是这个pass中需要记录为texture的一个参数，而 _ξ<sub>i</sub>_ 则是第 _i_ 个VPL对应的随机数，这个可以在初始化的过程中为每个光源随机分配一个 0~1 之间的随机数。其中的 _p<sub>i </sub>(l)_ 则是：
 
 <div align=center>
-<img src="pic/gs2.png"> 
+<img src="pic/gs4.png">
 
- 图5 融合公式
+ 图6 _p<sub>i </sub>(l)_ 计算公式
 </div>
 
-## GaussianBlurPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 由于融合后，每一块中的4*4个像素每个都完全由不同组的VPL贡献其色彩，为了近似这一块由所有VPL均匀贡献，需要对画面进行一次高斯模糊，值得一提的是，高斯模糊原本是对每一个点由其周围一个区域的所有像素贡献，可以通过横向和纵向两次模糊以较快的速度实现相同的效果。（在本Pass中并没有加上着色点的diffuse color，因为我们需要的是对光照效果进行模糊，如果加上纹理色彩，则纹理也会被模糊掉，这不是我们想要的，最终在一个screen quad pass中加上即可。）
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;而论文中推导出了一个截断半径的推导公式，半径可以作为第一个截断函数，当两点在世界坐标系中的距离大于影响半径的时候，则直接可以忽略该VPL对该着色点的贡献。
+
+<div align=center>
+<img src="pic/gs5.png">
+
+ 图7 截断半径计算公式
+</div>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;可以看到我们前边几乎所有的公式中都存在一个 _a<sub>i</sub>_ 的参数，这是一个和误差有关的常数：
+
+<div align=center>
+<img src="pic/gs6.png">
+
+ 图8 _a<sub>i</sub>_ 计算公式
+</div>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;其中 e<sub>max</sub>与误差有关，原论文中使用值为 _0.0005f_ , _E_ 为相机的曝光度，最终就可以代入数据实现论文的效果，这篇论文公式给的很全，是比较好复现的论文，思路比较巧妙。
+
+## ShadingWithRSMPass
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RSM具体原理已经介绍过，在具体实现本文的过程中，光源裁剪实际上是在这个Pass中实现的，而上一个Pass更多的是记录了 _a<sub>i</sub>_ 和截断半径 _r_ ，而具体的如图5和图6的公式则是在这个Pass中实现的。
 
 # 效果展示
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最初使用了经典的sponza作为测试，调整后得到效果如图6：
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最初使用了经典的sponza作为测试，调整后得到效果如图6，在未被光照到的地面也反射出了帘子的颜色，而且相对自然：
 <br> 
 <div align=center>
 <img src="pic/res1.png"> 
 
-图6 Sponza效果展示1
+图9 Sponza效果展示1
 </div>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;此处分析我为何认为本项目中边缘处理策略不是最佳的,如图7，可以发现在一些边缘处，出现了一条杂乱色彩的线条，这是由于在交错采样的过程中，边缘也被分割，也在对应的图像块中，由一组单独的光源进行照亮，而边缘线上连续两个像素则可能完全由不同的光源组进行照亮，这是会产生非常难看的杂乱色彩线条。
 
-<br> 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;在直接光照照到的左侧对面，可以看到锦的色彩也同样反射到了对面，尽管距离较远存在衰减，但是还是能够分辨出来自锦的间接光照，这个效果比预期要更好哈哈。
+
 
 <div align=center>
 <img src="pic/res2.png"> 
 
-图7 Sponza效果展示2
+图10 Sponza效果展示2
 </div>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;去除掉边缘检测的作用之后，对全图进行模糊后得到图8，可以看到边缘也确实失去了其应有的锐度，而我个人也没有想到较好的处理边缘的策略，如果看到这个的你有什么想法，请务必联系我哦！！
 
-<br> 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;通过观察对侧的墙面，对比左侧没有被直接光照照到的部分（几乎全黑），右侧的墙面完全是由间接光照照亮的，效果还是可以的。
+
 <div align=center>
-<img src="pic/res1_1.png"> 
+<img src="pic/res3.png"> 
 
-图8 Sponza效果展示(无边缘处理)
+图11 Sponza效果展示3
 </div>
 
 # 总结与评价
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 本文的策略非常聪明，也有非常广泛的应用场景，计算时间减少了 numX * numY 倍，也获得了近似的效果，这个思路在处理VPL的间接光照或者大量光照下的环境的时候非常有效，且理论上误差肉眼可以接受，在处理非环境主要着色的时候是非常厉害的策略，但其也存在一些缺点。
-* 更加适用于间接光照，如果用于计算场景的主要光照，那么边缘则很难在保留其锐度的前提下得到较好的效果。
-* 仔细观看图8的地板，由于分块处理像素，尽管做了高斯模糊，仍然会保留一定的像素色差，这一点可以通过多次模糊或者更高的模糊策略进行改善。。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 本文对于VPL的间接光照的实现效果不错的同时，还显著提高了VPL计算的效率，在01RSM中，RSM的分辨率只有256 * 256 , 而本文的RSM分辨率为 1024 * 1024, 但在光源裁剪的策略下，没有使用02的交错采样的策略便都能在更复杂的场景Sponza中获得更高的帧率，加速效果还是十分显著的。
+
 <br>
 <br>
 # 参考资料：
 
-[1] Segovia, B. & Iehl, J. & Mitanchey, Richard & Péroche, B.. (2006). Non-interleaved deferred shading of interleaved sample patterns. 53-60. 10.1145/1283900.1283909. <br>
-[2] 知乎：Monica的小甜甜：【论文复现】Non interleaved Deferred Shading of Interleaved Sample Patterns
+[1] Tokuyoshi, Yusuke & Harada, Takahiro. (2017). Stochastic Light Culling for VPLs on GGX Microsurfaces. Computer Graphics Forum. 36. 55-63. 10.1111/cgf.13224.  <br>
+[2] 知乎：Monica的小甜甜：【论文复现】Stochastic Light Culling
