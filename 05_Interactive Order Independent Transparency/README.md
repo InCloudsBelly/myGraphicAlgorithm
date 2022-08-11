@@ -73,16 +73,11 @@ __(_Cdst = Asrc Csrc + (1 - Asrc) Cdst_)__
 图9 Sponza效果展示1
 </div>
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;在直接光照照到的左侧对面，可以看到锦的色彩也同样反射到了对面，尽管距离较远存在衰减，但是还是能够分辨出来自锦的间接光照，这个效果比预期要更好哈哈。
-
-
 <div align=center>
 <img src="pic/res2.png"> 
 
 图10 Sponza效果展示2
 </div>
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;通过观察对侧的墙面，对比左侧没有被直接光照照到的部分（几乎全黑），右侧的墙面完全是由间接光照照亮的，效果还是可以的。
 
 <div align=center>
 <img src="pic/res3.png"> 
@@ -91,11 +86,11 @@ __(_Cdst = Asrc Csrc + (1 - Asrc) Cdst_)__
 </div>
 
 # 总结与评价
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 本文对于VPL的间接光照的实现效果不错的同时，还显著提高了VPL计算的效率，在01RSM中，RSM的分辨率只有256 * 256 , 而本文的RSM分辨率为 1024 * 1024, 但在光源裁剪的策略下，没有使用02的交错采样的策略便都能在更复杂的场景Sponza中获得更高的帧率，加速效果还是十分显著的。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 本文的透明效果还是比较自然的，然而，由于本文涉及到多次场景的渲染，每一帧的渲染需要正常渲染的数倍时间，和内存（尽管空间复杂度已经得到改善），这个在实际开发中是无法接受的，仅可作为启发性参考算法。
 
 <br>
 <br>
 # 参考资料：
 
-[1] Tokuyoshi, Yusuke & Harada, Takahiro. (2017). Stochastic Light Culling for VPLs on GGX Microsurfaces. Computer Graphics Forum. 36. 55-63. 10.1111/cgf.13224.  <br>
-[2] 知乎：Monica的小甜甜：【论文复现】Stochastic Light Culling
+[1] Everitt, Cass W.. “Interactive Order-Independent Transparency.” (2001)..  <br>
+[2] 知乎：Monica的小甜甜：【论文复现】Interactive Order Independent Transparency
