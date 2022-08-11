@@ -42,7 +42,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;本文使用了单独的色框进行构建图像，具体操作中可以将其替换成可以拼连的小纹理即可：
 <br> 
 <div align=center>
-<img src="pic/res1.png"> 
+<img src="pic/res1.png" width = 60%> 
 
 图4 随机纹理效果
 </div>
