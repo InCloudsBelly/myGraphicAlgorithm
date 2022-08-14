@@ -12,31 +12,41 @@
 
 # 面光源简介
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;在多边形光源 Polygonal-Light 渲染中，所需要解决的问题就是求辐照度 irradiance 积分
+
 $$
 L\left(p, w_{o}\right)=\int_{S} \frac{L\left(s,-\ {i}\right)}{\pi\|s-p\|^{2}}  \rho\left(p, w_{i}, w_{o}\right) \cos \left(\theta_{p}\right) d w_{i}
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;上式中，$S$ 为面光源区域， $s$ 为面光源上的某一个点， $p$ 为着色点， $n_{p}$ 为着色点法线， $w_{i}$ 为 $s$ 到 $p$ 的向量， $\theta_{p}$ 为 $n_{p}$ 与 $w_{i}$ 的夹角。从这个积分式是十分复杂的，但实际上可以将其拆解开来进行理解，其中 $L\left(s,-\omega_{i}\right)$ 是面光源上的而纹理颜色，其下方的分母则是光源的球面衰减，而 $\rho\left(p, w_{i}, w_{o}\right)$ 则是球面BRDF，如此便能够帮助理解。 不过在此之前我们先给出Daniel解决的无AO的漫反射面光源公式即：
+
 $$
 L\left(p, w_{o}\right)=\int_{S} \frac{1}{\pi\|s-p\|^{2}} \cos \left(\theta_{s}\right) \cos \left(\theta_{p}\right) d w_{i}
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$\theta_{s}$ 为 面光源上s点的法线 $n_{s}$ 与 $-w_{i}$ 的夹角。可以看出来两个式子极其的相似，只是光泽反射多了 复杂的BRDF以及面光源上纹理的颜色。
 
 <br>
 
 # 线性变换球面分布 LTSD(Linearly Transformed Spherical Distributions)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;论文作者就使用了一种线性变换球面分布LTSDs的思想。这种思想就是对于任意一个球面分布函数，一定可以通过一个线性变换矩阵将 其变化到另外一个球面分布函数。由于 $\cos \left(\theta_{s}\right)$ 是一个球面分布函数（余弦分布函数 ) ，$ \rho\left(p, w_{i}, w_{o}\right)$ 也是一个球面分布函数，如果可以用这个思想的话，那么复杂的BRDF就能够通过一个线性变换矩阵$M$由余弦分布变换而来：
+
 $$
 \rho\left(p, w_{i}, w_{o}\right) \approx M * \cos \left(\theta_{s}\right)
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;这个式子中的 * 不是矩阵乘法，而是入射方向的线性变换(注意使用单位向量，在线性变换之后进行了标准化，标准化的过程会导致非线性，但直观而言还是使用“线性”标识)：
+
 $$
 \omega =\frac{M\omega_{o}} {||M\omega_{o}||}\\
 \omega_{o} =\frac{M^{-1}\omega} {||M^{-1}\omega||} 
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;而将一个球面分布函数$D_o$通过线性变换得到下式：
+
 $$
 D(\omega)=D_{o}\left(\omega_{o}\right) \frac{\partial \omega_{o}}{\partial \omega}=D_{o}\left(\frac{M^{-1} \omega}{\left\|M^{-1} \omega\right\|}\right) \frac{\left|M^{-1}\right|}{\left\|M^{-1} \omega\right\|^{3}}
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;其中 $\frac{\partial \omega_{o}}{\partial \omega}=\frac{\left|M^{-1}\right|}{\left\|M^{-1} \omega\right\|^{3}}$ 是变换 $\mathrm{M}$ 的 Jacobian ${ }^{[3]}$ (Jacobian的推导看论文的附录A，就是微分上的几何推导）。
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当 $M$ 是缩放和旋转时， $M$ 不改变分布的形状，此时 $\frac{\partial \omega_{o}}{\partial \omega}=1$
@@ -53,6 +63,7 @@ M=\lambda I \\
 $$
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当 $M$ 是旋转时，有
+
 $$
 M=R\\
 \left|M^{-1}\right|=1\\
@@ -92,6 +103,7 @@ $$
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;使用了 GGX BRDF (菲涅尔项为 1,此处不考虑具体的菲涅尔项，如此所需要预计算存储的只需要与$\theta$ 和粗糙度 $\alpha$ 相关的二维纹理)，近似的 $D$ 为
 $D \approx \rho\left(p, w_{i}, w_{o}\right)$， 
 对于各项同性的 BRDF，BRDF 只取决于入射方向 $\omega_{i}$ 与法线 $n$ 之间的夹角 $\theta_{i}$ 和粗糙度 $\alpha$ 。对于任意 $\left(\theta_{i}, \alpha\right)$ 我们可以找到一个 LTC 来近似，也就是找到一个 $M$ （这是非线性优化问题，可用各种工具求解，具体操作可以参考代码库中的FitLTCMatrix项目，对于一组 $\left(\theta_{i}, \alpha\right)$ 使用单纯形法不断修正矩阵M直到误差在可接受的范围内)。由于各向同性 BRDF 有平面对称性且 LTSD 有缩放不变性， $M$ 可表示为
+
 $$
 M=\left[\begin{array}{lll}
 a & 0 & b \\
@@ -107,6 +119,7 @@ a & 0 & b \\
 c & 0 & d
 \end{array}\right]
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;这样拟合只用考虑4个变量，拟合的矩阵的 __逆矩阵(注意存储的是逆矩阵)__（同样只有四个参数，在渲染过程中只需要逆矩阵) 可以存储在一个 $2D$ 四通道的 LUT 中。
 
 <br>
@@ -122,6 +135,7 @@ $$
 &=\mathrm{F}_{0} \mathrm{n}_{\mathrm{D}}+\left(1-\mathrm{F}_{0}\right) \mathrm{f}_{\mathrm{D}}
 \end{aligned}
 $$
+
 将 $\mathrm{n}_{\mathrm{D}}$ 和 $\mathrm{f}_{\mathrm{D}}$ 进行预计算存储，这和PBR中的BRDF-LUT没有什么不同。
 
 
@@ -139,12 +153,15 @@ $$
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;具体操作之中，将光源分为了两个部分，分别是Diffuse和Specular，Diffuse项直接可以不使用LTC进行变换，使用原始光源形状进行积分就可以得到近似的光照强度，而Specular则是使用矩阵$M$进行线性变换，同时加上菲涅尔项的影响，Specular的存在将会大幅加强带纹理的多边形平面光源的场景影响细节。
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;而由线性变化球面分布中我们使用了 $D_{o}\left(\omega_{o}=(x, y, z)\right)=\frac{1}{\pi} \max (0, z)$ 进行线性变换后的积分，正如下式：
+
 $$
 \begin{aligned}
 & E\left(P_{o}\right) = \int_{P_{o}} D_{o}\left(\omega_{o}\right) \mathrm{d} \omega_{o} \\
 \end{aligned}
 $$
+
 其中 $E\left(P_{o}\right)$ 有解析解 (18 世纪 Lambert 给出) ，将多边形积分转化为线积分，如下
+
 $$
 \mathrm{E}\left(p_{1}, \ldots, p_{n}\right)=\frac{1}{2 \pi} \sum_{i=1}^{n} \operatorname{acos}\left(\left\langle p_{i}, p_{j}\right\rangle\right)\left\langle\frac{p_{i} \times p_{j}}{\left\|p_{i} \times p_{j}\right\|},\left[\begin{array}{l}
 0 \\
@@ -152,6 +169,7 @@ $$
 1
 \end{array}\right]\right\rangle
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;其中 $j = (i+1)\quad mod \quad {n}$ , 而即使是线性变换后的，我们所需要的积分范围也只需要上半球，因此在多边形的各个顶点在进行线性变换之后，需要进行一个上半球判断，如果存在不在上半球的顶点，需要进行多边形的裁剪，而本代码中的设计之中最多只支持四边形被裁减成为5边形，这部分可能代码长度较长，但是不要被吓到，实质上比较好理解。
 
 <br>
