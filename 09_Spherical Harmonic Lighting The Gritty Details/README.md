@@ -8,10 +8,13 @@
 $$
 L\left(p, w_{o}\right)=\int_{\Omega} L\left(p, \omega_{i}\right) n \cdot \omega_{i} d w_{i}
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${\Omega}$为半球空间，入射方向 $w_{i}$ ，观察方向 $w_{o}$ ，着色点 $p ， n$ 为着色点 $p$ 的法线，这个公式就描述了着色点 $p$ 在整个球面空间中收到的光照总和，由于上述环境光的特点 ， $p$位于天空盒的中心，光照方程就变成了:
+
 $$
 L\left(p, w_{o}\right)=L(n)=\int_{\Omega} L\left(\omega_{i}\right) n \cdot \omega_{i} d w_{i}
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;另一种常用的天空盒的环境光照计算方式IBL便是基于上述思路，预计算每个法线 $n$ 对应的 $L(n)$ ，将其保存后，计算任何一个着色点只需要根据具体的法线去取出对应的结果 $L(n)$ 即可,具体可以参考  [IBL](https://learnopengl-cn.github.io/07%20PBR/03%20IBL/01%20Diffuse%20irradiance/)。
 
 # 球谐函数性质
@@ -42,7 +45,9 @@ $$
 t(w)=n \cdot w
 \end{array}\right.
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;实际上我们将光照的积分项拆分为了与光照相关的$L(p, w)$ 和与入射方向和法线的夹角为 $n · w$,之后按照球谐展开的方式分别对两个球面函数进行展开即可得到下式 (其中$L_i和t_i$是计算出的第$i$组球谐系数) ：
+
 $$
 \left\{\begin{array}{l}
 \operatorname{light}(w)=\sum_{i=0} L_{i} Y_{i}(w) \\
@@ -59,14 +64,17 @@ $$
 =& \int_{\Omega}\left(\sum_{i=0} L_{i} Y_{i}(w)\right) \cdot\left(\sum_{j=0} t_{j} Y_{j}(w)\right) d w
 \end{aligned}
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;而很容易可以理解，我们可以将与$w$无关的参数和累加函数都提取到积分函数外边，如此便可以得到下式：
 $$
 =\sum_{j=0} \sum_{i=0} L_{i} t_{j} \int_{\Omega} Y_{i}(w) Y_{j}(w) d w
 $$
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;这个时候只看积分里面就用得上我们的性质一：正交完备性。有且仅有 $i = j$ 的时候 $\int_{\Omega} Y_{i}(w) Y_{j}(w) d w$ 才为 1 ，其余都为 0 。代入上式中便得到了非常厉害的化简:
+
 $$
 L\left(p, w_{o}\right)=\sum_{i=0} L_{i} t_{i}
 $$
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;看样子，到这里问题似乎很明朗了，对于任何一个点的漫反射光照，我们只需要读取出$2*N$个预计算得到的参数两两相乘相乘并累加即可，然而这里存在一个问题：如何预计算并存储这些参数呢?
 
 * $L_i$:
@@ -107,7 +115,7 @@ $$
 
 
 # 总结与评价
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SH是一个很厉害的概念，能够很巧妙地通过预计算实现对球面函数的拟合，在闫老师的games系列中第一次接触到了这个概念，那时候只是学会了学步似的去用，这次实现让我对SH的理解进了一步。而本文的算法主要使用了球谐函数的第一个性质，第二个很巧妙的旋转不变性也是非常实用的，在下一篇的实现之中可以利用这一性质不再需要预计算那么多张$t_i$的方法，那样球谐光照将会得到非常大的改善。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SH是一个很厉害的概念，能够很巧妙地通过预计算实现对球面函数的拟合，在闫老师的games系列中第一次接触到了这个概念，那时候只是学会了学步似的去用，这次实现让我对SH的理解进了一步。而本文的算法主要使用了球谐函数的第一个性质，第二个很巧妙的旋转不变性也是非常实用的，在项目11的实现之中可以利用这一性质不再需要预计算那么多张$t_i$的方法，那样球谐光照将会得到非常大的改善。
 <br>
 <br>
 # 参考资料：
