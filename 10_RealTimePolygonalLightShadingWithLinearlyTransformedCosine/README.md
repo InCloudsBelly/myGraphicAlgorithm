@@ -17,18 +17,18 @@ $$
 L\left(p, w_{o}\right)=\int_{S} \frac{L\left(s,-\ {i}\right)}{\pi\|s-p\|^{2}}  \rho\left(p, w_{i}, w_{o}\right) \cos \left(\theta_{p}\right) d w_{i}
 $$
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;上式中，$S$ 为面光源区域， $s$ 为面光源上的某一个点， $p$ 为着色点， $n_{p}$ 为着色点法线， $w_{i}$ 为 $s$ 到 $p$ 的向量， $\theta_{p}$ 为 $n_{p}$ 与 $w_{i}$ 的夹角。从这个积分式是十分复杂的，但实际上可以将其拆解开来进行理解，其中 $L\left(s,-\omega_{i}\right)$ 是面光源上的而纹理颜色，其下方的分母则是光源的球面衰减，而 $\rho\left(p, w_{i}, w_{o}\right)$ 则是球面BRDF，如此便能够帮助理解。 不过在此之前我们先给出Daniel解决的无AO的漫反射面光源公式即：
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;上式中， $S$ 为面光源区域， $s$ 为面光源上的某一个点， $p$ 为着色点， $n_{p}$ 为着色点法线， $w_{i}$ 为 $s$ 到 $p$ 的向量， $\theta_{p}$ 为 $n_{p}$ 与 $w_{i}$ 的夹角。从这个积分式是十分复杂的，但实际上可以将其拆解开来进行理解，其中 $L\left(s,-\omega_{i}\right)$ 是面光源上的而纹理颜色，其下方的分母则是光源的球面衰减，而 $\rho\left(p, w_{i}, w_{o}\right)$ 则是球面BRDF，如此便能够帮助理解。 不过在此之前我们先给出Daniel解决的无AO的漫反射面光源公式即：
 
 $$
 L\left(p, w_{o}\right)=\int_{S} \frac{1}{\pi\|s-p\|^{2}} \cos \left(\theta_{s}\right) \cos \left(\theta_{p}\right) d w_{i}
 $$
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$\theta_{s}$ 为 面光源上s点的法线 $n_{s}$ 与 $-w_{i}$ 的夹角。可以看出来两个式子极其的相似，只是光泽反射多了 复杂的BRDF以及面光源上纹理的颜色。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $\theta_{s}$ 为面光源上s点的法线 $n_{s}$ 与 $-w_{i}$ 的夹角。可以看出来两个式子极其的相似，只是光泽反射多了 复杂的BRDF以及面光源上纹理的颜色。
 
 <br>
 
 # 线性变换球面分布 LTSD(Linearly Transformed Spherical Distributions)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;论文作者就使用了一种线性变换球面分布LTSDs的思想。这种思想就是对于任意一个球面分布函数，一定可以通过一个线性变换矩阵将 其变化到另外一个球面分布函数。由于 $\cos \left(\theta_{s}\right)$ 是一个球面分布函数（余弦分布函数 ) ，$ \rho\left(p, w_{i}, w_{o}\right)$ 也是一个球面分布函数，如果可以用这个思想的话，那么复杂的BRDF就能够通过一个线性变换矩阵$M$由余弦分布变换而来：
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;论文作者就使用了一种线性变换球面分布LTSDs的思想。这种思想就是对于任意一个球面分布函数，一定可以通过一个线性变换矩阵将 其变化到另外一个球面分布函数。由于 $\cos \left(\theta_{s}\right)$ 是一个球面分布函数（余弦分布函数 ) ， $\rho\left(p, w_{i}, w_{o}\right)$ 也是一个球面分布函数，如果可以用这个思想的话，那么复杂的BRDF就能够通过一个线性变换矩阵 $M$ 由余弦分布变换而来：
 
 $$
 \rho\left(p, w_{i}, w_{o}\right) \approx M * \cos \left(\theta_{s}\right)
@@ -71,7 +71,7 @@ M=R\\
 \frac{\partial \omega_{o}}{\partial \omega}=\frac{\left|M^{-1}\right|}{\left\|M^{-1} \omega\right\|^{3}}=1
 $$
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;图2展示了一部分线性变换矩阵$M$对应的球面分布情况
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;图2展示了一部分线性变换矩阵 $M$ 对应的球面分布情况
 
 <div align=center>
 <img src="pic/2.png" width = 70%> 
@@ -96,7 +96,7 @@ $$
 ## 以LTC近似BRDF
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结合面光源简介中的公式，我们需要做的一步就是将BRDF线性变换成便于积分的余弦分布，那么我们需要的LTC的 $D_o$为：
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$D_{o}\left(\omega_{o}=(x, y, z)\right)=\frac{1}{\pi} \max (0, z)$
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $D_{o}\left(\omega_{o}=(x, y, z)\right)=\frac{1}{\pi} \max (0, z)$
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;将 $D_{o}$ 代入 $D(\omega)=D_{o}\left(\frac{M^{-1} \omega}{\left\|M^{-1} \omega\right\|}\right) \frac{\left|M^{-1}\right|}{\left\|M^{-1} \omega\right\|^{3}}$ 即可得线性变换余弦 linearly transformed cosines (LTC)。
 
@@ -136,7 +136,7 @@ $$
 \end{aligned}
 $$
 
-将 $\mathrm{n}_{\mathrm{D}}$ 和 $\mathrm{f}_{\mathrm{D}}$ 进行预计算存储，这和PBR中的BRDF-LUT没有什么不同。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;将 $n_D$ 和 $f_D$ 进行预计算存储，这和PBR中的BRDF-LUT没有什么不同。
 
 
 
@@ -148,7 +148,7 @@ $$
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;这一段是本篇论文中的另一个比较有趣的点，去观察代码可以发现，这个Pass并没有渲染什么，主要是加载了8幅图如图5，实质上是将面光源的Texture进行层层高斯滤波，去模拟距离光线越远，其光线锐度越弱，其原因也是距离较远的地方可以接受到面光源较大范围内的光线，而高斯模糊便是模拟了这一过程，（具体操作中根据着色点距离光源的距离判断使用哪一个层级的纹理颜色即可）。
 
 ## GroundPass
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;前边我们已经了解了如何通过一个线性变换矩阵$M$将复杂的BRDF的积分转换成为另一个积分范围(同样由$M$矩阵线性变换而来)的余弦函数的积分，进而可以得到一个非常近似的解析解。
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;前边我们已经了解了如何通过一个线性变换矩阵 $M$ 将复杂的BRDF的积分转换成为另一个积分范围(同样由$M$矩阵线性变换而来)的余弦函数的积分，进而可以得到一个非常近似的解析解。
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;具体操作之中，将光源分为了两个部分，分别是Diffuse和Specular，Diffuse项直接可以不使用LTC进行变换，使用原始光源形状进行积分就可以得到近似的光照强度，而Specular则是使用矩阵$M$进行线性变换，同时加上菲涅尔项的影响，Specular的存在将会大幅加强带纹理的多边形平面光源的场景影响细节。
 
