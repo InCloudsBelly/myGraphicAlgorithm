@@ -39,7 +39,7 @@ std::vector<Vertex> Cubemap::getVertices()
 				auto c = img.at<cv::Vec3f>(i, j);
 				int idx = k * w * h + i * img.cols + j;
 				float u = (float)j / (img.cols - 1);
-				float v = 1.0f - (float)i / (img.rows - 1);
+				float v = (float)i / (img.rows - 1);
 				Vec3 p = CubeUV2XYZ({ k, u, v });
 				vertices[idx] = { p, {c[2], c[1], c[0]} };
 			}
